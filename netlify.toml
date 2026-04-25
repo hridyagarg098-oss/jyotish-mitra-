@@ -7,3 +7,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Disable Next.js middleware from running as a Netlify Edge Function.
+  # Forces middleware to be handled by the Node.js serverless handler instead,
+  # which avoids webpack-runtime bundling failures in the edge runtime.
+  NETLIFY_NEXT_DISABLE_MIDDLEWARE_EDGE_RUNTIME = "true"
