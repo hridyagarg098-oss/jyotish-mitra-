@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { adminClient } from '@/lib/supabase/admin';
 import { calculateKundli } from '@/lib/astro/kundliEngine';
 
 export async function POST(request: NextRequest) {
+  const { getAdminClient } = await import('@/lib/supabase/admin');
+  const adminClient = getAdminClient();
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

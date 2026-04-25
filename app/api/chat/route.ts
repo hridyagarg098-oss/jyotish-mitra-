@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { adminClient } from '@/lib/supabase/admin';
 import { buildSystemPrompt } from '@/lib/ai/systemPrompt';
 import Groq from 'groq-sdk';
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  // Lazy-init at request time (not module eval time — avoids build crash)
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+  const { getAdminClient } = await import('@/lib/supabase/admin');
+  const admin = getAdminClient();
+
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data + rate limit check
-    const { data: userData } = await adminClient
+    const { data: userData } = await admin
       .from('users')
       .select('plan, chat_count_today, chat_reset_at')
       .eq('id', user.id)
@@ -41,20 +43,19 @@ export async function POST(request: NextRequest) {
         }, { status: 429 });
       }
 
-      // Reset count if new day
       if (resetNeeded) {
-        await adminClient.from('users').update({
+        await admin.from('users').update({
           chat_count_today: 0,
           chat_reset_at: today,
         }).eq('id', user.id);
       }
     }
 
-    // Get kundli data for system prompt
+    // Build system prompt from kundli data
     let systemPrompt = 'You are Jyotish Mitra, a Vedic astrology AI assistant. Speak in Hinglish. Be warm, specific, and insightful.';
 
     if (kundliId) {
-      const { data: kundliRecord } = await adminClient
+      const { data: kundliRecord } = await admin
         .from('kundlis')
         .select('*')
         .eq('id', kundliId)
@@ -62,14 +63,12 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (kundliRecord) {
-        // Also get user profile
-        const { data: userProfile } = await adminClient
+        const { data: userProfile } = await admin
           .from('users')
           .select('name, dob, tob, pob')
           .eq('id', user.id)
           .single();
 
-        // Build full kundli data for prompt
         const kundliData = {
           name: userProfile?.name || 'friend',
           dob: userProfile?.dob || '',
@@ -98,8 +97,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get last 10 messages for context
-    const { data: chatHistory } = await adminClient
+    // Get chat history for context
+    const { data: chatHistory } = await admin
       .from('chat_messages')
       .select('role, content')
       .eq('user_id', user.id)
@@ -124,7 +123,6 @@ export async function POST(request: NextRequest) {
       stream: true,
     });
 
-    // Build streaming response
     let fullResponse = '';
     const encoder = new TextEncoder();
 
@@ -140,14 +138,12 @@ export async function POST(request: NextRequest) {
           }
           controller.close();
 
-          // Save messages to DB after stream completes
-          await adminClient.from('chat_messages').insert([
+          await admin.from('chat_messages').insert([
             { user_id: user.id, role: 'user', content: message },
             { user_id: user.id, role: 'assistant', content: fullResponse },
           ]);
 
-          // Increment count
-          await adminClient.rpc('increment_chat_count', { user_id_input: user.id });
+          await admin.rpc('increment_chat_count', { user_id_input: user.id });
         } catch (err) {
           controller.error(err);
         }

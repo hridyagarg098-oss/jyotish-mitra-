@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminClient } from '@/lib/supabase/admin';
 import { buildRashifalPrompt } from '@/lib/ai/systemPrompt';
 import Groq from 'groq-sdk';
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export const revalidate = 0; // Dynamic
 
 export async function GET(request: NextRequest) {
+  // Lazy-init at request time to avoid build-time crash
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+  const { getAdminClient } = await import('@/lib/supabase/admin');
+  const admin = getAdminClient();
+
   const { searchParams } = new URL(request.url);
   const rashi = searchParams.get('rashi');
 
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
   const today = new Date().toISOString().split('T')[0];
 
   // Check DB cache first
-  const { data: cached } = await adminClient
+  const { data: cached } = await admin
     .from('daily_rashifal')
     .select('*')
     .eq('rashi', rashi)
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     const rashifalData = JSON.parse(rawContent);
 
     // Cache in DB
-    await adminClient.from('daily_rashifal').upsert({
+    await admin.from('daily_rashifal').upsert({
       rashi,
       date: today,
       data: rashifalData,
