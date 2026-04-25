@@ -1,130 +1,437 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS — JYOTISH MITRA
+═══════════════════════════════════════════ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --bg-0: #08020f;
+  --bg-1: #0d0618;
+  --bg-2: #13082a;
+  --bg-3: #1c1035;
+  --gold-bright: #FAC775;
+  --gold-mid: #BA7517;
+  --gold-dim: rgba(186, 117, 23, 0.15);
+  --gold-border: rgba(186, 117, 23, 0.25);
+  --gold-border-strong: rgba(186, 117, 23, 0.55);
+  --text-1: #F5ECD7;
+  --text-2: rgba(245, 236, 215, 0.6);
+  --text-3: rgba(245, 236, 215, 0.3);
+  --red-planet: #c0392b;
+  --blue-planet: #2980b9;
+  --green-planet: #27ae60;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* ═══════════════════════════════════════════
+   TAILWIND v4 CUSTOM THEME
+═══════════════════════════════════════════ */
+@theme {
+  --color-bg-0: #08020f;
+  --color-bg-1: #0d0618;
+  --color-bg-2: #13082a;
+  --color-bg-3: #1c1035;
+  --color-gold-bright: #FAC775;
+  --color-gold-mid: #BA7517;
+  --color-gold-dim: rgba(186, 117, 23, 0.15);
+  --color-text-1: #F5ECD7;
+  --color-text-2: rgba(245, 236, 215, 0.6);
+  --color-text-3: rgba(245, 236, 215, 0.3);
+  --color-red-planet: #c0392b;
+  --color-blue-planet: #2980b9;
+
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-devanagari: 'Noto Sans Devanagari', sans-serif;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+/* ═══════════════════════════════════════════
+   BASE RESET + GLOBAL STYLES
+═══════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-1);
+  color: var(--text-1);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════
+   TYPOGRAPHY
+═══════════════════════════════════════════ */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold-bright);
+  line-height: 1.1;
+}
+
+h1 { font-size: clamp(48px, 7vw, 80px); }
+h2 { font-size: clamp(32px, 5vw, 48px); }
+h3 { font-size: clamp(24px, 3vw, 36px); }
+h4 { font-size: 24px; }
+
+.display-hero {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 8vw, 80px);
+  font-weight: 600;
+  color: var(--gold-bright);
+  line-height: 1.05;
+}
+
+.display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(18px, 2.5vw, 26px);
+  color: var(--text-2);
+}
+
+.label-caps {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.devanagari {
+  font-family: var(--font-devanagari);
+}
+
+/* ═══════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-0); }
+::-webkit-scrollbar-thumb {
+  background: var(--gold-border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--gold-mid); }
+
+/* ═══════════════════════════════════════════
+   SELECTION
+═══════════════════════════════════════════ */
+::selection {
+  background: rgba(186, 117, 23, 0.35);
+  color: var(--gold-bright);
+}
+
+/* ═══════════════════════════════════════════
+   LAYOUT UTILITIES
+═══════════════════════════════════════════ */
+.container-main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (min-width: 768px) {
+  .container-main { padding: 0 48px; }
+}
+
+@media (min-width: 1280px) {
+  .container-main { padding: 0 80px; }
+}
+
+/* ═══════════════════════════════════════════
+   GOLD CARD
+═══════════════════════════════════════════ */
+.gold-card {
+  background: var(--bg-2);
+  border: 1px solid var(--gold-border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gold-card:hover {
+  border-color: var(--gold-border-strong);
+  box-shadow: 0 0 24px rgba(186, 117, 23, 0.1);
+}
+
+/* ═══════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gold-mid);
+  color: #08020f;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 28px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(186, 117, 23, 0.35);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--gold-bright);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 11px 28px;
+  border-radius: 10px;
+  border: 1px solid var(--gold-border-strong);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-ghost:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold-mid);
+}
+
+/* ═══════════════════════════════════════════
+   FORM INPUTS
+═══════════════════════════════════════════ */
+.input-gold {
+  width: 100%;
+  background: var(--bg-1);
+  border: 1px solid var(--gold-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-1);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-gold::placeholder { color: var(--text-3); }
+
+.input-gold:focus {
+  border-color: var(--gold-mid);
+  box-shadow: 0 0 0 3px rgba(186, 117, 23, 0.15);
+}
+
+/* ═══════════════════════════════════════════
+   PILL / BADGE
+═══════════════════════════════════════════ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--gold-border-strong);
+  color: var(--gold-bright);
+  background: var(--gold-dim);
+}
+
+.pill-toggle {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pill-toggle.active {
+  background: var(--gold-mid);
+  color: #08020f;
+  border-color: var(--gold-mid);
+}
+
+/* ═══════════════════════════════════════════
+   DIVIDER
+═══════════════════════════════════════════ */
+.gold-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--gold-border);
+}
+
+/* ═══════════════════════════════════════════
+   PLANET ORBIT LOADING ANIMATION
+═══════════════════════════════════════════ */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}
+
+@keyframes pulse-om {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes shooting-star {
+  0% { transform: translateX(0) translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.8; }
+  100% { transform: translateX(300px) translateY(150px); opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════
+   KUNDLI CHART SVG
+═══════════════════════════════════════════ */
+.kundli-chart line,
+.kundli-chart path,
+.kundli-chart rect {
+  stroke: rgba(186, 117, 23, 0.5);
+  stroke-width: 0.8;
+  fill: none;
+}
+
+/* ═══════════════════════════════════════════
+   DASHA PROGRESS BAR
+═══════════════════════════════════════════ */
+.dasha-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.dasha-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--gold-mid), var(--gold-bright));
+  transition: width 1s ease;
+}
+
+/* ═══════════════════════════════════════════
+   TAB BAR
+═══════════════════════════════════════════ */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-2);
+  border-radius: 12px;
+  border: 1px solid var(--gold-border);
+}
+
+.tab-item {
+  position: relative;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color 0.2s;
+  white-space: nowrap;
+  background: none;
+  border: none;
+}
+
+.tab-item.active {
+  color: #08020f;
+}
+
+/* ═══════════════════════════════════════════
+   CHAT PANEL
+═══════════════════════════════════════════ */
+.chat-bubble-ai {
+  max-width: 85%;
+  margin-right: auto;
+  background: var(--bg-3);
+  border: 0.5px solid var(--gold-border);
+  border-radius: 4px 18px 18px 18px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+
+.chat-bubble-user {
+  max-width: 85%;
+  margin-left: auto;
+  background: var(--gold-mid);
+  border-radius: 18px 4px 18px 18px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #08020f;
+  font-weight: 500;
+}
+
+/* Typing dots */
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold-mid);
+  animation: typing-bounce 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════
+   PLANET PULSE (floating chat trigger)
+═══════════════════════════════════════════ */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+.chat-trigger-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--gold-mid);
+  animation: pulse-ring 2.5s ease-out infinite;
+}
+
+/* ═══════════════════════════════════════════
+   COMPATIBILITY METER
+═══════════════════════════════════════════ */
+.score-excellent { color: #27ae60; }
+.score-good      { color: var(--gold-bright); }
+.score-average   { color: #f39c12; }
+.score-poor      { color: var(--red-planet); }
+
+/* ═══════════════════════════════════════════
+   PRINT STYLES (for PDF)
+═══════════════════════════════════════════ */
+@media print {
+  body { background: white; color: black; }
+  .no-print { display: none !important; }
 }

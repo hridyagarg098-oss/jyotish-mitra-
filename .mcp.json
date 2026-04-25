@@ -38,7 +38,7 @@
         "--project-ref", "fwhsombmtsekpozkixxa"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "PASTE_YOUR_SUPABASE_PERSONAL_ACCESS_TOKEN_HERE"
+        "SUPABASE_ACCESS_TOKEN": "sbp_6efce674e7479a48fbb59349e0aba2610b19fc7a"
       },
       "description": "Live Supabase DB — tables, queries, auth, migrations. Get access token at: https://supabase.com/dashboard/account/tokens"
     },
