@@ -435,3 +435,173 @@ h4 { font-size: 24px; }
   body { background: white; color: black; }
   .no-print { display: none !important; }
 }
+
+/* ═══════════════════════════════════════════
+   NAVBAR RESPONSIVE UTILITIES
+═══════════════════════════════════════════ */
+.nav-desktop-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.nav-desktop-only { display: inline-flex; }
+.nav-mobile-only  { display: none; }
+
+@media (max-width: 767px) {
+  .nav-desktop-links { display: none; }
+  .nav-desktop-only  { display: none !important; }
+  .nav-mobile-only   { display: flex !important; }
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE BOTTOM NAV
+═══════════════════════════════════════════ */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 60;
+    background: rgba(8, 2, 15, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--gold-border);
+    padding: 4px 0 env(safe-area-inset-bottom, 8px);
+  }
+  /* Extra bottom padding so content clears the nav */
+  body { padding-bottom: 64px; }
+}
+
+/* ═══════════════════════════════════════════
+   HOMEPAGE — RESPONSIVE GRIDS & SECTIONS
+═══════════════════════════════════════════ */
+
+/* Hero section */
+.hero-section {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 80px 80px 0;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.hero-mandala { display: flex; justify-content: center; }
+
+/* Stats */
+.stats-section { padding: 32px 80px; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Features */
+.features-section { padding: 96px 80px; max-width: 1280px; margin: 0 auto; }
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* Rashis */
+.rashis-section { padding: 80px; }
+.rashi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+/* Testimonials */
+.testimonials-section { padding: 96px 80px; max-width: 1280px; margin: 0 auto; }
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* CTA section */
+.cta-section { padding: 80px; text-align: center; }
+
+/* ── Tablet (768px – 1023px) ── */
+@media (max-width: 1023px) {
+  .hero-section    { padding: 60px 32px 0; }
+  .stats-section   { padding: 28px 32px; }
+  .features-section { padding: 64px 32px; }
+  .rashis-section  { padding: 56px 32px; }
+  .testimonials-section { padding: 64px 32px; }
+  .cta-section     { padding: 64px 32px; }
+
+  .hero-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .rashi-grid { grid-template-columns: repeat(4, 1fr); }
+  .testimonials-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Mobile (≤ 767px) ── */
+@media (max-width: 767px) {
+  .hero-section {
+    padding: 24px 20px 32px;
+    min-height: auto;
+    padding-top: 88px; /* below fixed navbar */
+  }
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    text-align: center;
+  }
+  .hero-mandala {
+    order: -1; /* mandala above text on mobile */
+    justify-content: center;
+  }
+  /* Scale mandala down on mobile */
+  .hero-mandala svg,
+  .hero-mandala > div { transform: scale(0.62); transform-origin: center top; }
+  .hero-mandala > div { margin: -80px 0; } /* compensate scale whitespace */
+
+  .stats-section   { padding: 24px 20px; }
+  .stats-grid      { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  .features-section { padding: 48px 20px; max-width: 100%; }
+  .features-grid   { grid-template-columns: 1fr; gap: 14px; }
+
+  .rashis-section  { padding: 48px 16px; }
+  .rashi-grid      { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  .testimonials-section { padding: 48px 20px; max-width: 100%; }
+  .testimonials-grid    { grid-template-columns: 1fr; gap: 16px; }
+
+  .cta-section { padding: 48px 20px; }
+
+  /* Mobile typography adjustments */
+  h1, .display-hero { font-size: clamp(36px, 10vw, 52px) !important; }
+  h2 { font-size: clamp(26px, 7vw, 36px) !important; }
+
+  /* Hero button row — stack on small screens */
+  .hero-btns {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .hero-btns a {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Gold card full-width on mobile */
+  .gold-card { padding: 18px; }
+}

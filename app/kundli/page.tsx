@@ -45,10 +45,11 @@ export default function KundliPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error('Pehle login karein', { description: 'Kundli banane ke liye account chahiye' });
+    // Check auth — redirect to login if not signed in
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) {
+      toast.error('Pehle login karein');
+      router.push('/auth');
       return;
     }
 
@@ -65,6 +66,7 @@ export default function KundliPage() {
     try {
       const res = await fetch('/api/kundli/calculate', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
@@ -77,15 +79,28 @@ export default function KundliPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Calculation failed');
+
+      // Session expired — redirect to login
+      if (res.status === 401) {
+        clearInterval(msgInterval);
+        setStep('form');
+        toast.error('Session expire ho gayi — dobara login karein');
+        router.push('/auth');
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error (${res.status})`);
+      }
 
       setStep('done');
-      await new Promise(r => setTimeout(r, 1000)); // Show success state
+      await new Promise(r => setTimeout(r, 1000));
       router.push(`/dashboard/${user.id}`);
     } catch (err) {
       clearInterval(msgInterval);
       setStep('form');
-      toast.error('Kuch gadbad ho gayi', { description: String(err) });
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('Kundli nahi ban payi', { description: msg });
     }
   };
 
