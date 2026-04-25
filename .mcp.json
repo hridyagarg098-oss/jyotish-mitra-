@@ -1,6 +1,12 @@
 {
   "mcpServers": {
 
+    "netlify": {
+      "command": "npx",
+      "args": ["-y", "@netlify/mcp@latest"],
+      "description": "Netlify — deploy sites, manage env vars, functions, and builds"
+    },
+
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Asus\\OneDrive\\Desktop\\astrology"],
