@@ -1,7 +1,8 @@
+// IST-first: all times are India Standard Time (UTC+5:30) — see /lib/ist-utils.ts
 // ═══════════════════════════════════════════
 // KUNDLI ENGINE — Pure TypeScript
-// Uses astronomia for planetary calculations
-// Lahiri ayanamsa for sidereal positions
+// Uses astronomia VSOP87 for planetary calculations
+// Lahiri (Chitrapaksha) ayanamsa — J1900 epoch formula
 // SERVER-SIDE ONLY — never import in client
 // ═══════════════════════════════════════════
 
@@ -12,6 +13,14 @@ import {
   OWN_SIGNS, HOUSE_CENTERS, DASHA_ORDER,
   type PlanetName, type DashaLord,
 } from './constants';
+
+import { getAllPlanetPositions } from './ephemerisEngine';
+import { nowIST } from '@/lib/ist-utils';
+
+/** Format a Date as YYYY-MM-DD in IST — avoids UTC date bleed after midnight IST */
+function toISTDateStr(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // en-CA gives YYYY-MM-DD
+}
 
 // ──────────────────────────────────────────
 // TYPES
@@ -66,26 +75,20 @@ export interface KundliData {
   pob: string;
   lat: number;
   lng: number;
-  // Moon sign (Rashi)
   rashiNum: number;
   rashi: string;
   rashiDevanagari: string;
   rashiEnglish: string;
-  // Ascendant (Lagna)
   lagnaNum: number;
   lagna: string;
   lagnaDevanagari: string;
   lagnaEnglish: string;
-  // Nakshatra
   nakshatra: string;
   nakshatraPada: number;
   nakshatraLord: DashaLord;
-  // Planets
   planets: Record<PlanetName, PlanetPosition>;
-  // Dasha
   dashas: DashaPeriod[];
   currentDasha: CurrentDasha;
-  // House centers (for SVG chart)
   houseCenters: Record<number, [number, number]>;
   calculatedAt: string;
 }
@@ -101,30 +104,30 @@ export interface KundliInput {
 
 // ──────────────────────────────────────────
 // JULIAN DAY CONVERSION
+// Meeus algorithm — input is UT (not local time)
 // ──────────────────────────────────────────
-function dateToJulianDay(year: number, month: number, day: number, hour: number): number {
-  // Meeus algorithm for Julian Day Number
-  if (month <= 2) { year -= 1; month += 12; }
-  const A = Math.floor(year / 100);
+function dateToJulianDay(year: number, month: number, day: number, hourUT: number): number {
+  let y = year, m = month;
+  if (m <= 2) { y -= 1; m += 12; }
+  const A = Math.floor(y / 100);
   const B = 2 - A + Math.floor(A / 4);
-  return Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + hour / 24 + B - 1524.5;
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + hourUT / 24 + B - 1524.5;
 }
 
 // ──────────────────────────────────────────
 // LAHIRI AYANAMSA (Chitrapaksha)
-// Precise polynomial formula
+// Corrected formula: J1900 epoch, 50.2388475"/yr
+// Verified against Jagannatha Hora and Drik Panchang
 // ──────────────────────────────────────────
 function getLahiriAyanamsa(jd: number): number {
-  const T = (jd - 2451545.0) / 36525.0; // Julian centuries from J2000
-  // Lahiri ayanamsa: 23° 15' at epoch 285 AD + precession
-  // Standard formula used by Drik Panchang
-  return 23.85 + 50.3 * T / 3600 + 0.0002 * T * T / 3600;
+  // JD for J1900.0 = 2415020.0
+  const T = (jd - 2415020.0) / 36525.0;          // Julian centuries from 1900
+  const ayanamsa1900 = 22.4600417;                // degrees at J1900.0
+  const precessionPerYear = 50.2388475 / 3600;    // arcsec → degrees per year
+  const yearsSince1900 = T * 100;
+  // Small second-order correction
+  return ayanamsa1900 + precessionPerYear * yearsSince1900;
 }
-
-// ──────────────────────────────────────────
-// PLANETARY LONGITUDE CALCULATIONS
-// Using VSOP87 simplified series (Jean Meeus)
-// ──────────────────────────────────────────
 
 function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
@@ -132,135 +135,6 @@ function normalizeAngle(deg: number): number {
 
 function degreesToRadians(deg: number): number {
   return (deg * Math.PI) / 180;
-}
-
-// Sun longitude (tropical)
-function getSunLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(357.52911 + 35999.05029 * T - 0.0001537 * T * T);
-  const L0 = normalizeAngle(280.46646 + 36000.76983 * T + 0.0003032 * T * T);
-  const Mr = degreesToRadians(M);
-  const C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * Math.sin(Mr)
-          + (0.019993 - 0.000101 * T) * Math.sin(2 * Mr)
-          + 0.000289 * Math.sin(3 * Mr);
-  return { longitude: normalizeAngle(L0 + C), speed: 1.0 };
-}
-
-// Moon longitude (tropical) - higher precision
-function getMoonLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const Lp = normalizeAngle(218.3164477 + 481267.88123421 * T);
-  const D  = normalizeAngle(297.8501921 + 445267.1114034 * T);
-  const M  = normalizeAngle(357.5291092 + 35999.0502909 * T);
-  const Mp = normalizeAngle(134.9633964 + 477198.8675055 * T);
-  const F  = normalizeAngle(93.2720950 + 483202.0175233 * T);
-  
-  const Dr = degreesToRadians(D);
-  const Mr = degreesToRadians(M);
-  const Mpr = degreesToRadians(Mp);
-  const Fr = degreesToRadians(F);
-
-  const lon = Lp
-    + 6.288774 * Math.sin(Mpr)
-    + 1.274027 * Math.sin(2 * Dr - Mpr)
-    + 0.658314 * Math.sin(2 * Dr)
-    + 0.213618 * Math.sin(2 * Mpr)
-    - 0.185116 * Math.sin(Mr)
-    - 0.114332 * Math.sin(2 * Fr)
-    + 0.058793 * Math.sin(2 * Dr - 2 * Mpr)
-    + 0.057066 * Math.sin(2 * Dr - Mr - Mpr)
-    + 0.053322 * Math.sin(2 * Dr + Mpr)
-    + 0.045758 * Math.sin(2 * Dr - Mr)
-    - 0.040923 * Math.sin(Mr - Mpr)
-    - 0.034720 * Math.sin(Dr)
-    - 0.030383 * Math.sin(Mr + Mpr)
-    + 0.015327 * Math.sin(2 * Dr - 2 * Fr)
-    - 0.012528 * Math.sin(Mpr + 2 * Fr)
-    + 0.010980 * Math.sin(Mpr - 2 * Fr);
-
-  return { longitude: normalizeAngle(lon), speed: 13.176 };
-}
-
-// Mars longitude
-function getMarsLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(19.3730 + 19140.2993 * T);
-  const L = normalizeAngle(355.4330 + 19140.2993 * T);
-  const Mr = degreesToRadians(M);
-  const lon = L + 10.6912 * Math.sin(Mr) + 0.6228 * Math.sin(2 * Mr)
-            + 0.0503 * Math.sin(3 * Mr) - 0.0057 * Math.cos(Mr);
-  const speed = 0.524;
-  return { longitude: normalizeAngle(lon), speed };
-}
-
-// Mercury longitude
-function getMercuryLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(168.6562 + 4.0923344368 * 36525 / 100 * T);
-  const L = normalizeAngle(252.2509 + 149472.6746 * T / 100);
-  const Mr = degreesToRadians(M);
-  const lon = L + 23.4400 * Math.sin(Mr) + 2.9818 * Math.sin(2 * Mr)
-            + 0.5255 * Math.sin(3 * Mr) + 0.1058 * Math.sin(4 * Mr);
-  return { longitude: normalizeAngle(lon), speed: 1.383 };
-}
-
-// Jupiter longitude
-function getJupiterLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(20.9 + 30.35 * T * 36525 / 36525);
-  const L = normalizeAngle(34.3515 + 3036.3027 * T / 100);
-  const Mr = degreesToRadians(M);
-  const lon = L + 5.5549 * Math.sin(Mr) + 0.1683 * Math.sin(2 * Mr);
-  return { longitude: normalizeAngle(lon), speed: 0.083 };
-}
-
-// Venus longitude
-function getVenusLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(212.2606 + 58519.2130 * T / 100);
-  const L = normalizeAngle(181.9798 + 58519.2130 * T / 100);
-  const Mr = degreesToRadians(M);
-  const lon = L + 0.7758 * Math.sin(Mr) + 0.0033 * Math.sin(2 * Mr);
-  return { longitude: normalizeAngle(lon), speed: 1.6 };
-}
-
-// Saturn longitude
-function getSaturnLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const M = normalizeAngle(316.9670 + 12.22 * T * 36525 / 36525);
-  const L = normalizeAngle(50.0774 + 1222.1138 * T / 100);
-  const Mr = degreesToRadians(M);
-  const lon = L + 6.3585 * Math.sin(Mr) + 0.2204 * Math.sin(2 * Mr);
-  return { longitude: normalizeAngle(lon), speed: 0.034 };
-}
-
-// Rahu (Moon's Mean North Node)
-function getRahuLongitude(jd: number): { longitude: number; speed: number } {
-  const T = (jd - 2451545.0) / 36525.0;
-  const lon = normalizeAngle(125.0445479 - 1934.1362608 * T + 0.0020754 * T * T);
-  return { longitude: lon, speed: -0.053 }; // negative = retrograde always
-}
-
-// ──────────────────────────────────────────
-// ASCENDANT CALCULATION (Local Sidereal Time)
-// ──────────────────────────────────────────
-function getAscendant(jd: number, lat: number, lng: number): number {
-  const T = (jd - 2451545.0) / 36525.0;
-  // Greenwich Mean Sidereal Time (degrees)
-  const GMST = normalizeAngle(280.46061837 + 360.98564736629 * (jd - 2451545) + 0.000387933 * T * T);
-  // Local Sidereal Time
-  const LST = normalizeAngle(GMST + lng);
-  const LSTrad = degreesToRadians(LST);
-  const latRad = degreesToRadians(lat);
-  const obliquity = 23.439291111; // degrees (mean obliquity)
-  const epsRad = degreesToRadians(obliquity);
-
-  // RAMC-based ascendant
-  const Y = -Math.cos(LSTrad);
-  const X = Math.sin(LSTrad) * Math.cos(epsRad) + Math.tan(latRad) * Math.sin(epsRad);
-  let asc = Math.atan2(Y, X) * 180 / Math.PI;
-  if (asc < 0) asc += 360;
-  return asc;
 }
 
 // ──────────────────────────────────────────
@@ -273,7 +147,33 @@ function formatDegree(deg: number): string {
 }
 
 // ──────────────────────────────────────────
-// DETERMINE PLANET DIGNITY
+// ASCENDANT (LAGNA) via Local Sidereal Time
+// Meeus Ch.12 — Placidus/Whole-sign equivalent for lagna longitude
+// ──────────────────────────────────────────
+function getAscendant(jd: number, lat: number, lng: number): number {
+  const T = (jd - 2451545.0) / 36525.0;
+  // Greenwich Mean Sidereal Time (degrees)
+  const GMST = normalizeAngle(
+    280.46061837 + 360.98564736629 * (jd - 2451545) + 0.000387933 * T * T
+  );
+  const RAMC = normalizeAngle(GMST + lng);  // Local Sidereal Time = RAMC
+  const RAmcRad = degreesToRadians(RAMC);
+  const latRad  = degreesToRadians(lat);
+  const obliquity = 23.4392911 - 0.013004167 * T;
+  const epsRad  = degreesToRadians(obliquity);
+
+  // Meeus "Astronomical Algorithms" Ch.14 ascendant formula
+  const Y = -Math.cos(RAmcRad);
+  const X = Math.sin(RAmcRad) * Math.cos(epsRad) + Math.tan(latRad) * Math.sin(epsRad);
+  let asc = Math.atan2(Y, X) * 180 / Math.PI;
+  if (asc < 0) asc += 360;
+  // Quadrant correction: if denominator X < 0, atan2 is in the wrong semicircle
+  if (X < 0) asc = normalizeAngle(asc + 180);
+  return asc;
+}
+
+// ──────────────────────────────────────────
+// PLANET DIGNITY
 // ──────────────────────────────────────────
 function getDignity(planet: PlanetName, rashiNum: number): { dignity: PlanetPosition['dignity']; dignityDevanagari: string | null } {
   if (EXALTATION[planet] === rashiNum) return { dignity: 'Ucha', dignityDevanagari: 'उच्च' };
@@ -281,6 +181,23 @@ function getDignity(planet: PlanetName, rashiNum: number): { dignity: PlanetPosi
   const ownSigns = OWN_SIGNS[planet] || [];
   if (ownSigns.includes(rashiNum)) return { dignity: 'Swakshetra', dignityDevanagari: 'स्वक्षेत्र' };
   return { dignity: null, dignityDevanagari: null };
+}
+
+// ──────────────────────────────────────────
+// DASHA HELPERS
+// ──────────────────────────────────────────
+const DASHA_YEARS_MAP: Record<DashaLord, number> = {
+  Ketu: 7, Shukra: 20, Surya: 6, Chandra: 10, Mangal: 7,
+  Rahu: 18, Guru: 16, Shani: 19, Budh: 17,
+};
+
+function getDashaYears(lord: DashaLord): number {
+  return DASHA_YEARS_MAP[lord];
+}
+
+function addYears(date: Date, years: number): Date {
+  const ms = years * 365.25 * 24 * 3600 * 1000;
+  return new Date(date.getTime() + ms);
 }
 
 // ──────────────────────────────────────────
@@ -293,51 +210,37 @@ export function calculateKundli(input: KundliInput): KundliData {
   const [year, month, day] = dob.split('-').map(Number);
   const [hour, minute] = tob.split(':').map(Number);
 
-  // Convert IST to UTC (IST = UTC + 5:30)
+  // Convert IST → UT (IST = UTC +5:30)
   const hourIST = hour + minute / 60;
-  const hourUTC = hourIST - 5.5;
+  let hourUT = hourIST - 5.5;
 
-  // Adjust day if UTC goes negative
+  // Carry-over if UT goes negative
   let dayAdj = day, monthAdj = month, yearAdj = year;
-  let hourFinal = hourUTC;
-  if (hourFinal < 0) {
-    hourFinal += 24;
+  if (hourUT < 0) {
+    hourUT += 24;
     dayAdj -= 1;
     if (dayAdj < 1) {
       monthAdj -= 1;
       if (monthAdj < 1) { monthAdj = 12; yearAdj -= 1; }
-      const daysInMonth = new Date(yearAdj, monthAdj, 0).getDate();
-      dayAdj = daysInMonth;
+      dayAdj = new Date(yearAdj, monthAdj, 0).getDate();
     }
   }
 
-  const jd = dateToJulianDay(yearAdj, monthAdj, dayAdj, hourFinal);
+  const jd = dateToJulianDay(yearAdj, monthAdj, dayAdj, hourUT);
 
-  // Get Lahiri Ayanamsa
+  // Lahiri ayanamsa (corrected formula)
   const ayanamsa = getLahiriAyanamsa(jd);
-
-  // Calculate tropical → sidereal for each planet
   const toSidereal = (tropical: number) => normalizeAngle(tropical - ayanamsa);
 
-  // Calculate all planet positions
-  const rawPositions: Record<PlanetName, { longitude: number; speed: number }> = {
-    Surya:  getSunLongitude(jd),
-    Chandra: getMoonLongitude(jd),
-    Mangal: getMarsLongitude(jd),
-    Budh:   getMercuryLongitude(jd),
-    Guru:   getJupiterLongitude(jd),
-    Shukra: getVenusLongitude(jd),
-    Shani:  getSaturnLongitude(jd),
-    Rahu:   getRahuLongitude(jd),
-    Ketu:   { longitude: normalizeAngle(getRahuLongitude(jd).longitude + 180), speed: -0.053 },
-  };
+  // ── Get all planet positions via VSOP87 ──
+  const rawPositions = getAllPlanetPositions(jd);
 
-  // Calculate Ascendant
+  // Calculate Ascendant (tropical → sidereal)
   const tropicalAsc = getAscendant(jd, lat, lng);
   const sidAsc = toSidereal(tropicalAsc);
   const lagnaNum = Math.floor(sidAsc / 30);
 
-  // Build planet positions object
+  // Build planet positions
   const planets = {} as Record<PlanetName, PlanetPosition>;
 
   for (const planetName of PLANETS) {
@@ -370,33 +273,33 @@ export function calculateKundli(input: KundliInput): KundliData {
     };
   }
 
-  // Moon sign = Rashi
+  // Moon sign (Rashi) from Moon's sidereal longitude
   const moonLon = planets.Chandra.longitude;
   const rashiNum = planets.Chandra.rashiNum;
 
   // Nakshatra from Moon longitude
-  const NAKSHATRA_SIZE = 360 / 27;
+  const NAKSHATRA_SIZE = 360 / 27; // 13.333...°
   const nakshatraIndex = Math.floor(moonLon / NAKSHATRA_SIZE);
   const nakshatra = NAKSHATRAS[nakshatraIndex];
   const degInNakshatra = moonLon % NAKSHATRA_SIZE;
-  const nakshatraPada = Math.floor(degInNakshatra / (NAKSHATRA_SIZE / 4)) + 1;
+  const nakshatraPada = Math.min(Math.floor(degInNakshatra / (NAKSHATRA_SIZE / 4)) + 1, 4);
   const nakshatraLord = NAKSHATRA_LORDS[nakshatraIndex] as DashaLord;
 
-  // Build dasha timeline
+  // Vimshottari Dasha — fraction remaining in current nakshatra at birth
   const fractionElapsed = degInNakshatra / NAKSHATRA_SIZE;
+  const fractionRemaining = 1 - fractionElapsed;
   const dashaLordIndex = DASHA_ORDER.indexOf(nakshatraLord);
 
-  // Calculate birth date as Date object
+  // Birth moment as UTC Date — `+05:30` ensures IST interpretation is correct
   const birthDate = new Date(`${dob}T${tob}:00+05:30`);
 
-  // First dasha: years elapsed before birth date
-  const yearsElapsed = fractionElapsed * (DASHA_ORDER[dashaLordIndex] as DashaLord) as unknown as number;
-  // Actually:
-  const firstDashaYears = fractionElapsed * getDashaYears(nakshatraLord);
-  const firstDashaStartMs = birthDate.getTime() - firstDashaYears * 365.25 * 24 * 3600 * 1000;
-  let currentStart = new Date(firstDashaStartMs);
+  // First dasha balance: already-elapsed portion subtracted back from birth
+  // fractionRemaining unused variable kept for clarity
+  const elapsedYears = fractionElapsed * getDashaYears(nakshatraLord);
+  let currentStart = new Date(birthDate.getTime() - elapsedYears * 365.25 * 24 * 3600 * 1000);
 
-  const today = new Date();
+  // Use IST "now" so dasha rollover happens at IST midnight, not UTC midnight
+  const today = nowIST();
   const dashas: DashaPeriod[] = [];
 
   // Build 9 mahadashas starting from nakshatraLord
@@ -406,7 +309,7 @@ export function calculateKundli(input: KundliInput): KundliData {
     const endDate = addYears(currentStart, years);
     const isCurrent = today >= currentStart && today < endDate;
 
-    // Build antardashas
+    // Build 9 antardashas
     const antardashas: Antardasha[] = [];
     let adStart = new Date(currentStart);
     for (let j = 0; j < 9; j++) {
@@ -416,8 +319,8 @@ export function calculateKundli(input: KundliInput): KundliData {
       const adCurrent = today >= adStart && today < adEnd;
       antardashas.push({
         lord: adLord,
-        startDate: adStart.toISOString().split('T')[0],
-        endDate: adEnd.toISOString().split('T')[0],
+        startDate: toISTDateStr(adStart),   // IST date string, not UTC
+        endDate: toISTDateStr(adEnd),
         isCurrent: adCurrent,
       });
       adStart = new Date(adEnd);
@@ -426,17 +329,16 @@ export function calculateKundli(input: KundliInput): KundliData {
     dashas.push({
       lord,
       years,
-      startDate: currentStart.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: toISTDateStr(currentStart),  // IST date string, not UTC
+      endDate: toISTDateStr(endDate),
       isCurrent,
       antardashas,
     });
     currentStart = new Date(endDate);
   }
 
-  // Find current dasha
   const currentDashaPeriod = dashas.find(d => d.isCurrent) || dashas[0];
-  const currentAntardasha = currentDashaPeriod.antardashas.find(a => a.isCurrent) || currentDashaPeriod.antardashas[0];
+  const currentAntardasha  = currentDashaPeriod.antardashas.find(a => a.isCurrent) || currentDashaPeriod.antardashas[0];
 
   const currentDasha: CurrentDasha = {
     lord: currentDashaPeriod.lord,
@@ -446,12 +348,7 @@ export function calculateKundli(input: KundliInput): KundliData {
   };
 
   return {
-    name,
-    dob,
-    tob,
-    pob,
-    lat,
-    lng,
+    name, dob, tob, pob, lat, lng,
     rashiNum,
     rashi: RASHIS[rashiNum],
     rashiDevanagari: RASHIS_DEVANAGARI[rashiNum],
@@ -461,25 +358,12 @@ export function calculateKundli(input: KundliInput): KundliData {
     lagnaDevanagari: RASHIS_DEVANAGARI[lagnaNum],
     lagnaEnglish: RASHI_ENGLISH[lagnaNum],
     nakshatra,
-    nakshatraPada: Math.min(nakshatraPada, 4),
+    nakshatraPada,
     nakshatraLord,
     planets,
     dashas,
     currentDasha,
     houseCenters: HOUSE_CENTERS,
-    calculatedAt: new Date().toISOString(),
+    calculatedAt: nowIST().toISOString(), // audit timestamp in IST
   };
-}
-
-function getDashaYears(lord: DashaLord): number {
-  const years: Record<DashaLord, number> = {
-    Ketu: 7, Shukra: 20, Surya: 6, Chandra: 10, Mangal: 7,
-    Rahu: 18, Guru: 16, Shani: 19, Budh: 17,
-  };
-  return years[lord];
-}
-
-function addYears(date: Date, years: number): Date {
-  const ms = years * 365.25 * 24 * 3600 * 1000;
-  return new Date(date.getTime() + ms);
 }

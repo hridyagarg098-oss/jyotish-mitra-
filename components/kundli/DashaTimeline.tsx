@@ -1,8 +1,15 @@
 'use client';
+// IST-first: all times are India Standard Time (UTC+5:30) — see /lib/ist-utils.ts
 
 import { useMemo } from 'react';
 import type { KundliData, DashaPeriod } from '@/lib/astro/kundliEngine';
 import { PLANET_COLORS } from '@/lib/astro/constants';
+
+// IST "now" for client-side use (avoids UTC midnight blip at 5:30 AM IST)
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function nowISTTime(): number {
+  return Date.now() + IST_OFFSET_MS;
+}
 
 interface Props {
   kundli: KundliData;
@@ -11,7 +18,7 @@ interface Props {
 function getProgressPercent(startDate: string, endDate: string): number {
   const start = new Date(startDate).getTime();
   const end = new Date(endDate).getTime();
-  const now = Date.now();
+  const now = nowISTTime(); // IST-corrected
   if (now <= start) return 0;
   if (now >= end) return 100;
   return Math.round(((now - start) / (end - start)) * 100);
@@ -22,7 +29,10 @@ function formatYear(dateStr: string): string {
 }
 
 function formatDateShort(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata', // always show in IST
+    month: 'short', year: 'numeric',
+  });
 }
 
 export default function DashaTimeline({ kundli }: Props) {

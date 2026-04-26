@@ -320,7 +320,16 @@ export default function KundliPage() {
                   </div>
                   <div>
                     <label className="label-caps" style={{ display: 'block', marginBottom: 8 }}>
-                      Janm Samay
+                      Janm Samay{' '}
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 400,
+                        color: 'var(--gold-mid)',
+                        textTransform: 'none',
+                        letterSpacing: 0,
+                      }}>
+                        (IST — भारतीय समय)
+                      </span>
                     </label>
                     <input
                       className="input-gold"
@@ -330,6 +339,9 @@ export default function KundliPage() {
                       required
                       style={{ colorScheme: 'dark' }}
                     />
+                    <p style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>
+                      India Standard Time (UTC+5:30)
+                    </p>
                   </div>
                 </div>
 

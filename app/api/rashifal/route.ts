@@ -1,11 +1,12 @@
+// IST-first: all times are India Standard Time (UTC+5:30) — see /lib/ist-utils.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { buildRashifalPrompt } from '@/lib/ai/systemPrompt';
+import { buildRashifalPrompt, type TransitData } from '@/lib/ai/systemPrompt';
+import { todayIST, nowIST } from '@/lib/ist-utils';
 import Groq from 'groq-sdk';
 
-export const revalidate = 0; // Dynamic
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  // Lazy-init at request time to avoid build-time crash
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
   const { getAdminClient } = await import('@/lib/supabase/admin');
   const admin = getAdminClient();
@@ -17,9 +18,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Rashi parameter required' }, { status: 400 });
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // ── IST date as cache key — resets at IST midnight, NOT UTC midnight ──
+  const today = todayIST();
 
-  // Check DB cache first
+  // 1. Check rashifal cache (keyed by IST date)
   const { data: cached } = await admin
     .from('daily_rashifal')
     .select('*')
@@ -31,30 +33,52 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cached.data);
   }
 
-  // Generate with AI
+  // 2. Fetch today's transits (IST-keyed cache)
+  let transits: TransitData | undefined;
   try {
-    const prompt = buildRashifalPrompt(rashi);
+    const { data: transitCache } = await admin
+      .from('daily_rashifal')
+      .select('data')
+      .eq('rashi', '_transits')
+      .eq('date', today)    // IST date match
+      .single();
+
+    if (transitCache) {
+      transits = transitCache.data as TransitData;
+    } else {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const resp = await fetch(`${baseUrl}/api/daily-transits`);
+      if (resp.ok) transits = await resp.json();
+    }
+  } catch {
+    // Transits unavailable — proceed without
+  }
+
+  // 3. Generate with AI (transit-grounded prompt)
+  try {
+    const prompt = buildRashifalPrompt(rashi, transits);
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 512,
-      temperature: 0.8,
+      max_tokens: 600,
+      temperature: 0.75,
       response_format: { type: 'json_object' },
     });
 
     const rawContent = completion.choices[0]?.message?.content || '{}';
     const rashifalData = JSON.parse(rawContent);
 
-    // Cache in DB
+    // Cache with IST date key + IST audit timestamp
     await admin.from('daily_rashifal').upsert({
       rashi,
-      date: today,
+      date: today,                        // IST date — rolls at IST midnight
       data: rashifalData,
+      generated_at: nowIST().toISOString(), // IST timestamp for auditing
     }, { onConflict: 'rashi,date' });
 
     return NextResponse.json(rashifalData);
   } catch (error) {
-    // Return fallback data
+    console.error('Rashifal generation error:', error);
     return NextResponse.json({
       general: `Aaj ${rashi} rashi ke liye ek neutral din hai. Apne kaam par dhyan dein.`,
       career: 'Kaam mein steady progress ho raha hai.',

@@ -110,7 +110,7 @@ export const OWN_SIGNS: Partial<Record<PlanetName, number[]>> = {
 // Nakshatra Gana
 export const NAKSHATRA_GANA: Record<string, 'Deva' | 'Manushya' | 'Rakshasa'> = {
   Ashwini: 'Deva', Bharani: 'Manushya', Krittika: 'Rakshasa',
-  Rohini: 'Manushya', Mrigashira: 'Deva', Ardra: 'Manushya',
+  Rohini: 'Manushya', Mrigashira: 'Deva', Ardra: 'Rakshasa',
   Punarvasu: 'Deva', Pushya: 'Deva', Ashlesha: 'Rakshasa',
   Magha: 'Rakshasa', 'Purva Phalguni': 'Manushya', 'Uttara Phalguni': 'Manushya',
   Hasta: 'Deva', Chitra: 'Rakshasa', Swati: 'Deva',

@@ -1,6 +1,8 @@
+// IST-first: all times are India Standard Time (UTC+5:30) — see /lib/ist-utils.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from '@/lib/ai/systemPrompt';
+import { todayIST } from '@/lib/ist-utils';
 import Groq from 'groq-sdk';
 
 export const runtime = 'nodejs';
@@ -32,7 +34,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userData) {
-      const today = new Date().toISOString().split('T')[0];
+      // Use IST date — daily quota resets at IST midnight, not UTC midnight
+      const today = todayIST();
       const resetNeeded = userData.chat_reset_at !== today;
       const countToday = resetNeeded ? 0 : (userData.chat_count_today || 0);
 

@@ -72,7 +72,9 @@ function RashifalContent() {
   const [data, setData] = useState<RashifalData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // IST-first: always show IST date, regardless of user device timezone
   const today = new Date().toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 
