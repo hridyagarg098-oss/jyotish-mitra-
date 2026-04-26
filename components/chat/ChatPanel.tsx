@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, ChevronDown } from 'lucide-react';
+import { ChevronDown, Send } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Message {
@@ -22,20 +22,18 @@ const SUGGESTED_CHIPS = [
 ];
 
 export default function ChatPanel() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [isOpen, setIsOpen]       = useState(false);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [input, setInput]         = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [kundliId, setKundliId] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>('');
-  const [chatCount, setChatCount] = useState(0);
-  const [limitReached, setLimitReached] = useState(false);
+  const [kundliId, setKundliId]   = useState<string | null>(null);
+  const [userName, setUserName]   = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const supabase = createClient();
+  const inputRef       = useRef<HTMLTextAreaElement>(null);
+  const supabase       = createClient();
 
-  // Load user + kundli info
+  // Load user + kundli info — no limit checks
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -44,17 +42,11 @@ export default function ChatPanel() {
 
       const { data: profile } = await supabase
         .from('users')
-        .select('name, chat_count_today, plan')
+        .select('name')
         .eq('id', user.id)
         .single();
 
-      if (profile) {
-        setUserName(profile.name?.split(' ')[0] || 'friend');
-        setChatCount(profile.chat_count_today || 0);
-        if (profile.plan === 'free' && (profile.chat_count_today || 0) >= 5) {
-          setLimitReached(true);
-        }
-      }
+      if (profile) setUserName(profile.name?.split(' ')[0] || 'friend');
 
       const { data: kundli } = await supabase
         .from('kundlis')
@@ -76,7 +68,6 @@ export default function ChatPanel() {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
-    if (limitReached) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -88,7 +79,6 @@ export default function ChatPanel() {
     setInput('');
     setIsStreaming(true);
 
-    // Add empty AI message that we'll fill
     const aiMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, {
       id: aiMsgId,
@@ -104,15 +94,6 @@ export default function ChatPanel() {
         body: JSON.stringify({ message: text.trim(), kundliId }),
       });
 
-      if (res.status === 429) {
-        const errData = await res.json();
-        setMessages(prev => prev.map(m =>
-          m.id === aiMsgId ? { ...m, content: errData.message || 'Free messages khatam. Upgrade karein.' } : m
-        ));
-        setLimitReached(true);
-        return;
-      }
-
       if (res.status === 401) {
         setMessages(prev => prev.map(m =>
           m.id === aiMsgId ? { ...m, content: 'Pehle login karein. 🙏' } : m
@@ -127,31 +108,28 @@ export default function ChatPanel() {
         return;
       }
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        accumulated += chunk;
+        accumulated += decoder.decode(value, { stream: true });
         setMessages(prev => prev.map(m =>
           m.id === aiMsgId ? { ...m, content: accumulated } : m
         ));
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
 
-      setChatCount(c => c + 1);
-      if (chatCount + 1 >= 5) setLimitReached(true);
-    } catch (err) {
+    } catch {
       setMessages(prev => prev.map(m =>
         m.id === aiMsgId ? { ...m, content: 'Network error. Please check connection.' } : m
       ));
     } finally {
       setIsStreaming(false);
     }
-  }, [isStreaming, limitReached, kundliId, chatCount]);
+  }, [isStreaming, kundliId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -187,10 +165,8 @@ export default function ChatPanel() {
               }}
               title="AI Pandit se Poochho"
             >
-              {/* Pulse ring */}
               <span className="chat-trigger-ring" />
               <span style={{ position: 'relative', zIndex: 1 }}>✦</span>
-              {/* Unread badge */}
               {messages.length === 0 && (
                 <span style={{
                   position: 'absolute', top: -2, right: -2,
@@ -240,7 +216,6 @@ export default function ChatPanel() {
               gap: 10,
               flexShrink: 0,
             }}>
-              {/* Online dot */}
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
                 background: '#27ae60',
@@ -278,7 +253,6 @@ export default function ChatPanel() {
               gap: 12,
             }}>
               {messages.length === 0 ? (
-                /* Initial state */
                 <div style={{ textAlign: 'center', paddingTop: 20 }}>
                   <div style={{ fontSize: 36, marginBottom: 12 }}>
                     <span className="devanagari" style={{ color: 'var(--gold-bright)' }}>ॐ</span>
@@ -335,7 +309,6 @@ export default function ChatPanel() {
                   </div>
                 </div>
               ) : (
-                /* Messages list */
                 <>
                   {messages.map(msg => (
                     <div key={msg.id}>
@@ -364,24 +337,7 @@ export default function ChatPanel() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Limit reached banner */}
-            {limitReached && (
-              <div style={{
-                padding: '10px 16px',
-                background: 'rgba(186,117,23,0.15)',
-                borderTop: '1px solid var(--gold-border)',
-                fontSize: 12,
-                color: 'var(--gold-bright)',
-                textAlign: 'center',
-              }}>
-                5 free messages khatam.{' '}
-                <a href="/upgrade" style={{ color: 'var(--gold-bright)', fontWeight: 700 }}>
-                  Pro upgrade karein →
-                </a>
-              </div>
-            )}
-
-            {/* Login prompt */}
+            {/* Login prompt — only if not logged in */}
             {!isLoggedIn && (
               <div style={{
                 padding: '10px 16px',
@@ -414,7 +370,7 @@ export default function ChatPanel() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Apna sawal likho..."
-                disabled={isStreaming || limitReached || !isLoggedIn}
+                disabled={isStreaming || !isLoggedIn}
                 rows={1}
                 style={{
                   flex: 1,
@@ -432,7 +388,7 @@ export default function ChatPanel() {
               />
               <button
                 onClick={() => sendMessage(input)}
-                disabled={!input.trim() || isStreaming || limitReached}
+                disabled={!input.trim() || isStreaming}
                 style={{
                   width: 36, height: 36, borderRadius: '50%',
                   background: input.trim() && !isStreaming ? 'var(--gold-mid)' : 'var(--bg-3)',
@@ -446,19 +402,6 @@ export default function ChatPanel() {
                 <Send size={15} color={input.trim() && !isStreaming ? '#08020f' : 'var(--text-3)'} />
               </button>
             </div>
-
-            {/* Message counter */}
-            {isLoggedIn && !limitReached && (
-              <div style={{
-                padding: '4px 16px 8px',
-                fontSize: 10,
-                color: 'var(--text-3)',
-                background: 'var(--bg-2)',
-                textAlign: 'center',
-              }}>
-                {5 - chatCount} free messages remaining today
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

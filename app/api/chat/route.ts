@@ -26,33 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
 
-    // ── Rate limiting (IST midnight reset) ──────────────────────────
-    const { data: userData } = await admin
-      .from('users')
-      .select('plan, chat_count_today, chat_reset_at')
-      .eq('id', user.id)
-      .single();
-
-    if (userData) {
-      const today = todayIST();
-      const resetNeeded = userData.chat_reset_at !== today;
-      const countToday = resetNeeded ? 0 : (userData.chat_count_today || 0);
-
-      if (userData.plan === 'free' && countToday >= 5) {
-        return NextResponse.json({
-          error: 'limit_reached',
-          message: 'Aapki 5 free messages khatam ho gayi hain. Pro mein upgrade karein — unlimited AI Pandit! ✨',
-        }, { status: 429 });
-      }
-
-      if (resetNeeded) {
-        await admin.from('users').update({
-          chat_count_today: 0,
-          chat_reset_at: today,
-        }).eq('id', user.id);
-      }
-    }
-
+    // Unlimited chat — no rate limits
     // ── Fetch user's kundli ─────────────────────────────────────────
     const kundliQuery = kundliId
       ? admin.from('kundlis').select('*').eq('id', kundliId).eq('user_id', user.id).single()
@@ -203,8 +177,6 @@ export async function POST(request: NextRequest) {
             { user_id: user.id, role: 'user',      content: message },
             { user_id: user.id, role: 'assistant', content: fullResponse },
           ]);
-
-          await admin.rpc('increment_chat_count', { user_id_input: user.id });
         } catch (err) {
           controller.error(err);
         }

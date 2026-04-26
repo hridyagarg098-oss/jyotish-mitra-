@@ -130,27 +130,22 @@ export default function DashboardClient({ kundli, plan, userId }: Props) {
         {/* WhatsApp Share */}
         <WhatsAppShare kundli={kundli} />
 
-        {/* Pro badge */}
-        {plan === 'free' && (
-          <div style={{
-            marginTop: 16,
-            padding: '14px 16px',
-            background: 'var(--gold-dim)',
-            border: '1px solid var(--gold-border)',
-            borderRadius: 12,
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: 13, color: 'var(--gold-bright)', fontWeight: 500, marginBottom: 4 }}>
-              ✦ Pro upgrade karein
-            </p>
-            <p style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 10 }}>
-              Unlimited chat + PDF download
-            </p>
-            <button className="btn-primary" style={{ width: '100%', padding: '8px', fontSize: 13 }}>
-              ₹99/month
-            </button>
-          </div>
-        )}
+        {/* App info */}
+        <div style={{
+          marginTop: 16,
+          padding: '14px 16px',
+          background: 'var(--gold-dim)',
+          border: '1px solid var(--gold-border)',
+          borderRadius: 12,
+          textAlign: 'center',
+        }}>
+          <p style={{ fontSize: 13, color: 'var(--gold-bright)', fontWeight: 500, marginBottom: 4 }}>
+            ✦ Jyotish Mitra
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--text-2)' }}>
+            Unlimited AI Pandit · Unlimited Kundli
+          </p>
+        </div>
       </aside>
 
       {/* ── MAIN CONTENT ── */}
