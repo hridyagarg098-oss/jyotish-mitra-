@@ -15,7 +15,9 @@ import {
 } from './constants';
 
 import { getAllPlanetPositions } from './ephemerisEngine';
+import { calcLagna, calcBhavas, getLahiriAyanamsa } from './lagna';
 import { nowIST } from '@/lib/ist-utils';
+
 
 /** Format a Date as YYYY-MM-DD in IST — avoids UTC date bleed after midnight IST */
 function toISTDateStr(d: Date): string {
@@ -75,18 +77,28 @@ export interface KundliData {
   pob: string;
   lat: number;
   lng: number;
+  // Moon (Janma Rashi)
   rashiNum: number;
   rashi: string;
   rashiDevanagari: string;
   rashiEnglish: string;
+  // Lagna (Ascendant)
   lagnaNum: number;
   lagna: string;
   lagnaDevanagari: string;
   lagnaEnglish: string;
+  lagnaDegree: number;         // whole degrees in rashi
+  lagnaMinute: number;         // arc-minutes
+  lagnaSecond: number;         // arc-seconds
+  lagnaDegreeFormatted: string; // "7° 24' 18""
+  navamsaLagna: string;        // D9 lagna rashi name
+  // Moon
   nakshatra: string;
   nakshatraPada: number;
   nakshatraLord: DashaLord;
+  // Charts
   planets: Record<PlanetName, PlanetPosition>;
+  bhavas: { bhava: number; rashiIndex: number; rashiName: string; rashiDevanagari: string; rashiEnglish: string; }[];
   dashas: DashaPeriod[];
   currentDasha: CurrentDasha;
   houseCenters: Record<number, [number, number]>;
@@ -114,20 +126,8 @@ function dateToJulianDay(year: number, month: number, day: number, hourUT: numbe
   return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + hourUT / 24 + B - 1524.5;
 }
 
-// ──────────────────────────────────────────
-// LAHIRI AYANAMSA (Chitrapaksha)
-// Corrected formula: J1900 epoch, 50.2388475"/yr
-// Verified against Jagannatha Hora and Drik Panchang
-// ──────────────────────────────────────────
-function getLahiriAyanamsa(jd: number): number {
-  // JD for J1900.0 = 2415020.0
-  const T = (jd - 2415020.0) / 36525.0;          // Julian centuries from 1900
-  const ayanamsa1900 = 22.4600417;                // degrees at J1900.0
-  const precessionPerYear = 50.2388475 / 3600;    // arcsec → degrees per year
-  const yearsSince1900 = T * 100;
-  // Small second-order correction
-  return ayanamsa1900 + precessionPerYear * yearsSince1900;
-}
+// getLahiriAyanamsa is now imported from lagna.ts
+
 
 function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
@@ -146,31 +146,8 @@ function formatDegree(deg: number): string {
   return `${d}° ${m.toString().padStart(2, '0')}'`;
 }
 
-// ──────────────────────────────────────────
-// ASCENDANT (LAGNA) via Local Sidereal Time
-// Meeus Ch.12 — Placidus/Whole-sign equivalent for lagna longitude
-// ──────────────────────────────────────────
-function getAscendant(jd: number, lat: number, lng: number): number {
-  const T = (jd - 2451545.0) / 36525.0;
-  // Greenwich Mean Sidereal Time (degrees)
-  const GMST = normalizeAngle(
-    280.46061837 + 360.98564736629 * (jd - 2451545) + 0.000387933 * T * T
-  );
-  const RAMC = normalizeAngle(GMST + lng);  // Local Sidereal Time = RAMC
-  const RAmcRad = degreesToRadians(RAMC);
-  const latRad  = degreesToRadians(lat);
-  const obliquity = 23.4392911 - 0.013004167 * T;
-  const epsRad  = degreesToRadians(obliquity);
+// getAscendant is now handled by calcLagna() from lagna.ts
 
-  // Meeus "Astronomical Algorithms" Ch.14 ascendant formula
-  const Y = -Math.cos(RAmcRad);
-  const X = Math.sin(RAmcRad) * Math.cos(epsRad) + Math.tan(latRad) * Math.sin(epsRad);
-  let asc = Math.atan2(Y, X) * 180 / Math.PI;
-  if (asc < 0) asc += 360;
-  // Quadrant correction: if denominator X < 0, atan2 is in the wrong semicircle
-  if (X < 0) asc = normalizeAngle(asc + 180);
-  return asc;
-}
 
 // ──────────────────────────────────────────
 // PLANET DIGNITY
@@ -228,17 +205,20 @@ export function calculateKundli(input: KundliInput): KundliData {
 
   const jd = dateToJulianDay(yearAdj, monthAdj, dayAdj, hourUT);
 
-  // Lahiri ayanamsa (corrected formula)
+  // Lahiri ayanamsa + sidereal conversion
   const ayanamsa = getLahiriAyanamsa(jd);
   const toSidereal = (tropical: number) => normalizeAngle(tropical - ayanamsa);
 
   // ── Get all planet positions via VSOP87 ──
   const rawPositions = getAllPlanetPositions(jd);
 
-  // Calculate Ascendant (tropical → sidereal)
-  const tropicalAsc = getAscendant(jd, lat, lng);
-  const sidAsc = toSidereal(tropicalAsc);
-  const lagnaNum = Math.floor(sidAsc / 30);
+  // ── Ascendant via verified lagna.ts module ──
+  const lagnaResult = calcLagna(jd, lat, lng, ayanamsa);
+  const lagnaNum    = lagnaResult.rashiIndex;
+  const sidAsc      = lagnaResult.siderealDeg;
+
+  // ── Bhava (Whole-Sign houses) ──
+  const bhavas = calcBhavas(lagnaNum);
 
   // Build planet positions
   const planets = {} as Record<PlanetName, PlanetPosition>;
@@ -354,16 +334,22 @@ export function calculateKundli(input: KundliInput): KundliData {
     rashiDevanagari: RASHIS_DEVANAGARI[rashiNum],
     rashiEnglish: RASHI_ENGLISH[rashiNum],
     lagnaNum,
-    lagna: RASHIS[lagnaNum],
-    lagnaDevanagari: RASHIS_DEVANAGARI[lagnaNum],
-    lagnaEnglish: RASHI_ENGLISH[lagnaNum],
+    lagna: lagnaResult.rashiName,
+    lagnaDevanagari: lagnaResult.rashiDevanagari,
+    lagnaEnglish: lagnaResult.rashiEnglish,
+    lagnaDegree: lagnaResult.degree,
+    lagnaMinute: lagnaResult.minute,
+    lagnaSecond: lagnaResult.second,
+    lagnaDegreeFormatted: lagnaResult.degreeFormatted,
+    navamsaLagna: lagnaResult.navamsaRashiName,
     nakshatra,
     nakshatraPada,
     nakshatraLord,
     planets,
+    bhavas,
     dashas,
     currentDasha,
     houseCenters: HOUSE_CENTERS,
-    calculatedAt: nowIST().toISOString(), // audit timestamp in IST
+    calculatedAt: nowIST().toISOString(),
   };
 }
