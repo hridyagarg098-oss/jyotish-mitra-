@@ -129,31 +129,41 @@ export async function POST(request: NextRequest) {
       .select('role, content')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(6);                    // 3 pairs max — keep context tight
+      .limit(4);                    // last 4 = 2 turns — tight context
 
     const historyMessages = (chatHistory || []).reverse().map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
 
-    // ── Message array — LLaMA 3.3 processes user msgs most strongly ─
-    // Architecture: system → kundli briefing (user→assistant pair) → history → current
+    // ── Message array — exact structure as specified ────────────────
+    // system → assistant seed (primes voice) → user(kundli) → assistant(kundli ack) → last 4 history → user
+    const janmaRashi  = kundliRecord?.rashi || 'your rashi';
+    const antardasha  = kundliRecord?.current_dasha?.antardasha?.lord || 'current';
+
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: PANDIT_SYSTEM_PROMPT,
       },
-      // Kundli as a "briefing" exchange before the real chat
+      // Assistant seed — primes model voice BEFORE user speaks
+      {
+        role: 'assistant',
+        content: 'Haan boliye. Kundli dekh li maine.',
+      },
+      // Kundli as first user message
       {
         role: 'user',
-        content: kundliContextBlock,
+        content: `Meri janam kundli:\n${kundliContextBlock}`,
       },
+      // Second ack with rashi + antardasha — confirms model read it
       {
         role: 'assistant',
         content: kundliRecord
-          ? `Haan ji, aapki kundli dekh li. Poochho kya jaanna hai.`
-          : `Aapki kundli abhi nahi mili. Janam taarikh, samay aur jagah batayein — phir main poora chart dekh ke baat karta hoon.`,
+          ? `Achha, dekh liya. ${janmaRashi} rashi hai, ${antardasha} antardasha chal rahi hai abhi. Poochho.`
+          : `Kundli nahi mili. Janam taarikh, samay (IST) aur janam sthan batao — phir poora chart dekh ke baat karta hoon.`,
       },
+      // Last 4 messages only — 2 turns — tight context
       ...historyMessages,
       {
         role: 'user',
@@ -161,15 +171,15 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    // ── Stream with concise settings ────────────────────────────────
+    // ── Stream — exact parameters as specified ──────────────────────
     const stream = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages,
-      max_tokens: 400,          // HARD LIMIT — forces 4-8 line answers
-      temperature: 0.65,        // slight creativity but grounded
-      top_p: 0.85,
-      frequency_penalty: 0.5,   // STRONG — prevents repetitive astro phrases
-      presence_penalty: 0.3,    // encourages covering different angles
+      max_tokens: 350,          // HARD CAP — forces short responses
+      temperature: 0.6,         // balanced — not robotic, not hallucinating
+      top_p: 0.88,
+      frequency_penalty: 0.6,   // HIGH — kills repetitive astrology phrases
+      presence_penalty: 0.4,    // forces covering different points each message
       stream: true,
     });
 
