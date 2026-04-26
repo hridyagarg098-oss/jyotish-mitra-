@@ -1,9 +1,7 @@
 // IST-first: all times are India Standard Time (UTC+5:30) — see /lib/ist-utils.ts
 // ═══════════════════════════════════════════
-// GOCHAR (TRANSIT) ANALYSIS
+// GOCHAR (TRANSIT) ANALYSIS + CHANDRA GOCHAR TABLE + TITHI
 // Classical results per BPHS and Phaladeepika
-// Transit house counted FROM Janma Rashi (Moon sign)
-// SERVER-SIDE ONLY
 // ═══════════════════════════════════════════
 
 export interface GocharEntry {
@@ -189,6 +187,76 @@ export function getSadeSatiStatus(
   if (house === 12) return { isActive: true, phase: 'Arambh (Rising phase)' };
   if (house === 1)  return { isActive: true, phase: 'Madhya (Peak phase — sabse kathin)' };
   if (house === 2)  return { isActive: true, phase: 'Ant (Ending phase)' };
-  if (house === 8)  return { isActive: false, phase: 'Dhaiya (small sade sati — 2.5 yr)' };
+  if (house === 8)  return { isActive: false, phase: 'Dhaiya (Ashtam Shani — 2.5 yr)' };
   return { isActive: false, phase: 'Active nahi' };
+}
+
+// ── CHANDRA GOCHAR PHALA ──────────────────────────────────────────────────
+// Moon transits each house in ~2.5 days — this drives the DAILY change in rashifal
+// Source: BPHS Ch.43, Muhurta Chintamani
+// house = counted from janma rashi (Moon sign at birth)
+export const CHANDRA_GOCHAR_PHALA: Record<number, string> = {
+  1:  'Janma Chandra — sharirik thakaan aur mann mein bechain, nayi shuruaat ke liye sahi din nahi. Aaj aaram karo, reactive decisions avoid karo.',
+  2:  'Dhan sthaan — kharcha control mein rakho, parivaar se baat mein meethas rakho. Koi purana paisaa wapas aa sakta hai aaj.',
+  3:  'Parakram sthaan — himmat aur energy achhi hai aaj. Chhoti yatra, communication, bhai-behan ka kaam ban sakta hai. Writing ke liye achi energy hai.',
+  4:  'Sukh sthaan — ghar mein sukoon ka ehsaas hoga. Maata ka prem milega. Ghar ya property ke kaam ke liye acha din hai. Emotionally stable rahoge.',
+  5:  'Santaan sthaan — creative energy peak par hai. Love matters mein aaj thoda nazuk din. Purane relations mein tension ya nayi feelings aa sakti hain.',
+  6:  'Shatru sthaan — shathron par vijay ke yog. Jo kaam karna tha woh aaj kar do — energy aur jo bhi competition hai woh jeet sakte ho. Sehat par dhyan do.',
+  7:  'Kalatra sthaan — partner ke saath quality time do. Business meetings aur deals ke liye achha din. Relationships mein harmony aayegi aaj.',
+  8:  'Ashtam Chandra — aaj bahut sensitive din hai. Bade decisions avoid karo. Hidden matters saamne aa sakte hain. Emotionally deep din, introspection karo.',
+  9:  'Bhagya sthaan — bhagya saath deta hai aaj. Yatra aur guru-milan shubh. Dharmik karyon mein man lagega. Koi achha aur unexpected news aa sakta hai.',
+  10: 'Karma sthaan — career mein kuch significant hone ke chances hain. Seniors ka support milega. Koi bada kaam complete ho sakta hai aaj.',
+  11: 'Laabh sthaan — sabse shubh din. Aaye laabh ko pakdo, koi ichha puri ho sakti hai, mitr saath honge aur help karenge. Naye contacts bhi milenge.',
+  12: 'Vyay sthaan — vyay ki sambhavna hai aaj. Ekant aur aaram chahiye hoga. Creative ya spiritual kaam karo — outward activity kam rakho.',
+};
+
+// ── TITHI NAMES (Hindi) ───────────────────────────────────────────────────
+export const TITHI_NAMES = [
+  'Pratipada', 'Dwitiya', 'Tritiya', 'Chaturthi', 'Panchami',
+  'Shashthi', 'Saptami', 'Ashtami', 'Navami', 'Dashami',
+  'Ekadashi', 'Dwadashi', 'Trayodashi', 'Chaturdashi',
+  'Poornima (Purnima)', // index 14 = full moon (Shukla)
+  'Pratipada', 'Dwitiya', 'Tritiya', 'Chaturthi', 'Panchami',
+  'Shashthi', 'Saptami', 'Ashtami', 'Navami', 'Dashami',
+  'Ekadashi', 'Dwadashi', 'Trayodashi', 'Chaturdashi',
+  'Amavasya (No Moon)', // index 29
+];
+
+// ── WEEKDAY VAR NAMES ─────────────────────────────────────────────────────
+// JS getDay(): 0=Sun,1=Mon,...,6=Sat
+export const VAR_NAMES = ['Ravi', 'Som', 'Mangal', 'Budh', 'Guru', 'Shukra', 'Shani'];
+export const VAR_LORDS = ['Surya', 'Chandra', 'Mangal', 'Budh', 'Guru', 'Shukra', 'Shani'];
+
+// Today's var (IST weekday)
+export function getTodayVar(): { var: string; lord: string } {
+  const dayOfWeek = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }),
+  ).getDay();
+  return { var: VAR_NAMES[dayOfWeek], lord: VAR_LORDS[dayOfWeek] };
+}
+
+/**
+ * Calculate current Tithi from Moon and Sun longitudes (both sidereal, 0–360)
+ * Tithi = every 12° difference between Moon and Sun = 1 tithi
+ */
+export function calcTithi(moonSiderealDeg: number, sunSiderealDeg: number): string {
+  const diff = ((moonSiderealDeg - sunSiderealDeg) % 360 + 360) % 360;
+  const tithiIndex = Math.floor(diff / 12);
+  const paksha = tithiIndex < 15 ? 'Shukla Paksha' : 'Krishna Paksha';
+  const name = TITHI_NAMES[tithiIndex] ?? 'Amavasya';
+  return `${name} (${paksha})`;
+}
+
+/**
+ * Moon phase description from tithi index
+ */
+export function getMoonPhase(moonSiderealDeg: number, sunSiderealDeg: number): string {
+  const diff = ((moonSiderealDeg - sunSiderealDeg) % 360 + 360) % 360;
+  if (diff < 12) return 'Naya Chandra (New Moon)';
+  if (diff < 90) return 'Shukla Paksha — Chhoti waxing';
+  if (diff < 168) return 'Shukla Paksha — Bada waxing';
+  if (diff < 192) return 'Purnima (Full Moon)';
+  if (diff < 270) return 'Krishna Paksha — Waning';
+  if (diff < 348) return 'Krishna Paksha — Bada waning';
+  return 'Amavasya (Dark Moon)';
 }

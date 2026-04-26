@@ -188,24 +188,30 @@ function calcGana(boy: PersonAstro, girl: PersonAstro): GunaScore {
   
   let score = 0;
   if (boyGana === girlGana) {
-    score = 6;
+    score = 6;                                            // same gana = full marks
   } else if (boyGana === 'Deva' && girlGana === 'Manushya') {
-    score = 5;
+    score = 5;                                            // Deva boy + Manushya girl = shubh
   } else if (boyGana === 'Manushya' && girlGana === 'Deva') {
-    score = 6;
+    score = 5;                                            // ← BUG FIX: was incorrectly 6
+  } else if (boyGana === 'Deva' && girlGana === 'Rakshasa') {
+    score = 1;                                            // Dev+Raksha = 1, not 0 (BPHS)
+  } else if (boyGana === 'Rakshasa' && girlGana === 'Deva') {
+    score = 0;                                            // Rakshasa boy + Deva girl = 0
   } else if (boyGana === 'Manushya' && girlGana === 'Rakshasa') {
     score = 0;
   } else if (boyGana === 'Rakshasa' && girlGana === 'Manushya') {
-    score = 0;
-  } else if (boyGana === 'Deva' && girlGana === 'Rakshasa') {
-    score = 0;
-  } else if (boyGana === 'Rakshasa' && girlGana === 'Deva') {
     score = 0;
   }
   
   return {
     score, max: 6,
-    description: `${boyGana} + ${girlGana} — ${score === 6 ? 'Uttam' : score >= 5 ? 'Achha' : 'Pratikool'}`,
+    description: score === 6
+      ? `${boyGana} + ${girlGana} — Uttam (Same gana)`
+      : score >= 5
+      ? `${boyGana} + ${girlGana} — Achha (Mitra gana)`
+      : score >= 1
+      ? `${boyGana} + ${girlGana} — Saamaanya — upay se theek hoga`
+      : `${boyGana} + ${girlGana} — Gana Dosha — swabhaav mein antar, dhyan do`,
   };
 }
 
@@ -292,21 +298,21 @@ export function calculateGunaMilan(
   let verdictHinglish: string;
   let verdictColor: string;
 
-  if (totalGunas >= 30) {
+  if (totalGunas >= 28) {
     verdict = 'Shreshtha';
-    verdictHinglish = 'Bahut zyada anukool — ideal match! 🌟';
+    verdictHinglish = 'Ati uttam milan — yeh jodi ek doosre ke liye bani hai 🌟';
     verdictColor = '#27ae60';
   } else if (totalGunas >= 24) {
     verdict = 'Uttam';
-    verdictHinglish = 'Achha milan hai — recommend karein ✨';
-    verdictColor = '#FAC775';
+    verdictHinglish = 'Bahut achha milan — vivah shubh rahega ✨';
+    verdictColor = '#2ecc71';
   } else if (totalGunas >= 18) {
     verdict = 'Theek Hai';
-    verdictHinglish = 'Theek-thak milan — cautiously proceed 🟡';
+    verdictHinglish = 'Madhyam milan — samjhauta zaroori, par vivah chal sakta hai 🟡';
     verdictColor = '#f39c12';
   } else {
     verdict = 'Anushansit Nahin';
-    verdictHinglish = 'Milan sahi nahi hai — avoid ⚠️';
+    verdictHinglish = 'Milan theek nahi — dosha bahut hain, pandit se salah lein ⚠️';
     verdictColor = '#c0392b';
   }
 

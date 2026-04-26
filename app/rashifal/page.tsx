@@ -13,8 +13,15 @@ interface RashifalData {
   career: string;
   love: string;
   health: string;
+  upay?: string;
   lucky: { color: string; number: number; time: string };
   rating: number;
+  dominantPlanet?: string;
+  keyTransit?: string;
+  moonHouse?: number;
+  tithi?: string;
+  var?: string;
+  _meta?: { isPersonalised?: boolean; nakshatra?: string; dasha?: string; sadeSati?: string | null };
 }
 
 const ELEMENT_ICONS: Record<string, string> = {
@@ -97,6 +104,16 @@ function RashifalContent() {
         <p style={{ fontSize: 16, color: 'var(--text-2)' }}>
           Apni rashi chuniye aur aaj ka dainik rashifal padhiye
         </p>
+        {/* Dynamic chips shown once data loads */}
+        {data && (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+            {data.tithi && <span className="pill" style={{ fontSize: 12 }}>🌙 {data.tithi}</span>}
+            {data.var && <span className="pill" style={{ fontSize: 12 }}>📅 {data.var}</span>}
+            {data.moonHouse && <span className="pill" style={{ fontSize: 12 }}>Chandra → {data.moonHouse}va Ghar</span>}
+            {data._meta?.isPersonalised && <span className="pill" style={{ fontSize: 12, background: 'var(--gold-dim)', borderColor: 'var(--gold-mid)' }}>✦ Personalized</span>}
+            {data._meta?.sadeSati && <span className="pill" style={{ fontSize: 12, background: 'rgba(192,57,43,0.15)', borderColor: '#c0392b', color: '#e74c3c' }}>⚠️ Sade Sati</span>}
+          </div>
+        )}
       </div>
 
       {/* 12 rashi grid */}
@@ -203,6 +220,43 @@ function RashifalContent() {
                     </p>
                   </motion.div>
                 ))}
+              </div>
+
+              {/* Key transit + upay row */}
+              <div style={{ display: 'grid', gridTemplateColumns: data.upay ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 20 }}>
+                {data.keyTransit && (
+                  <motion.div
+                    className="gold-card"
+                    style={{ borderLeft: '3px solid var(--gold-mid)', padding: '16px 20px' }}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 20 }}>🪐</span>
+                      <p className="label-caps">Aaj Ka Pramukh Gochar</p>
+                    </div>
+                    <p style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.65 }}>{data.keyTransit}</p>
+                    {data.dominantPlanet && (
+                      <p style={{ fontSize: 12, color: 'var(--gold-bright)', marginTop: 8 }}>Pramukh Graha: {data.dominantPlanet}</p>
+                    )}
+                  </motion.div>
+                )}
+                {data.upay && (
+                  <motion.div
+                    className="gold-card"
+                    style={{ borderLeft: '3px solid #27ae60', padding: '16px 20px' }}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 20 }}>🪬</span>
+                      <p className="label-caps">Aaj Ka Upay</p>
+                    </div>
+                    <p style={{ fontSize: 14, color: 'var(--text-1)', lineHeight: 1.65 }}>{data.upay}</p>
+                  </motion.div>
+                )}
               </div>
 
               {/* Lucky numbers */}

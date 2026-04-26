@@ -7,7 +7,12 @@ import type { MilanResult } from '@/lib/astro/gunaCalculator';
 
 export default function MilanTab({ kundli, userId }: { kundli: KundliData; userId: string }) {
   const [form, setForm] = useState({ name: '', dob: '', tob: '', pob: '' });
-  const [result, setResult] = useState<MilanResult & { partnerKundli?: any } | null>(null);
+  const [result, setResult] = useState<MilanResult & {
+    partnerKundli?: any;
+    narrative?: string;
+    nadiDosha?: boolean;
+    bhakutDosha?: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -80,14 +85,25 @@ export default function MilanTab({ kundli, userId }: { kundli: KundliData; userI
             {/* Score display */}
             <div className="gold-card" style={{ textAlign: 'center', marginBottom: 24, background: 'var(--gold-dim)' }}>
               {/* Nadi Dosha warning */}
-              {result.gunaBreakdown.nadiDosha && (
+              {(result.nadiDosha || result.gunaBreakdown.nadiDosha) && (
                 <div style={{
-                  marginBottom: 16, padding: '12px 16px',
+                  marginBottom: 12, padding: '12px 16px',
                   background: 'rgba(192,57,43,0.15)',
-                  border: '1px solid rgba(192,57,43,0.4)',
-                  borderRadius: 10, color: '#c0392b', fontSize: 14,
+                  border: '1px solid rgba(192,57,43,0.5)',
+                  borderRadius: 10, color: '#e74c3c', fontSize: 14, textAlign: 'left',
                 }}>
-                  ⚠️ <strong>Nadi Dosha!</strong> — Dono ka nakshatra ek hi nadi mein hai. Kisi Jyotishi se salah lein.
+                  ⚠️ <strong>Nadi Dosha!</strong> — Dono ka nakshatra ek hi nadi mein hai. Yeh sabse gambhir dosha hai — santaan aur swasthya par asar ho sakta hai. Upay zaroori hain.
+                </div>
+              )}
+              {/* Bhakoot Dosha warning */}
+              {result.bhakutDosha && (
+                <div style={{
+                  marginBottom: 12, padding: '12px 16px',
+                  background: 'rgba(230,126,34,0.15)',
+                  border: '1px solid rgba(230,126,34,0.5)',
+                  borderRadius: 10, color: '#e67e22', fontSize: 14, textAlign: 'left',
+                }}>
+                  ⚠️ <strong>Bhakoot Dosha!</strong> — Rashiyon ki sthiti anukool nahi. Love aur prosperity par prabhav pad sakta hai — Rudrabhishek aur Vishnu Sahasranaam se upay karo.
                 </div>
               )}
               <div style={{
@@ -144,9 +160,17 @@ export default function MilanTab({ kundli, userId }: { kundli: KundliData; userI
                               }}
                             />
                           </div>
+                          {guna.description && (
+                            <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                              {guna.description}
+                            </p>
+                          )}
                         </td>
                         <td style={{ padding: '12px 16px', textAlign: 'right', width: 60 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold-bright)' }}>
+                          <span style={{
+                            fontSize: 14, fontWeight: 700,
+                            color: pct === 0 ? '#c0392b' : pct < 50 ? '#e67e22' : 'var(--gold-bright)',
+                          }}>
                             {guna.score}/{guna.max}
                           </span>
                         </td>
@@ -156,6 +180,40 @@ export default function MilanTab({ kundli, userId }: { kundli: KundliData; userI
                 </tbody>
               </table>
             </div>
+
+            {/* Partner kundli summary */}
+            {result.partnerKundli && (
+              <div className="gold-card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+                <p className="label-caps" style={{ marginBottom: 10 }}>Partner Ki Kundli</p>
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                  <div><p style={{ fontSize: 11, color: 'var(--text-3)' }}>Rashi</p><p style={{ fontSize: 14, fontWeight: 600 }}>{result.partnerKundli.rashi}</p></div>
+                  <div><p style={{ fontSize: 11, color: 'var(--text-3)' }}>Lagna</p><p style={{ fontSize: 14, fontWeight: 600 }}>{result.partnerKundli.lagna}</p></div>
+                  <div><p style={{ fontSize: 11, color: 'var(--text-3)' }}>Nakshatra</p><p style={{ fontSize: 14, fontWeight: 600 }}>{result.partnerKundli.nakshatra} Pada {result.partnerKundli.nakshatraPada}</p></div>
+                  <div><p style={{ fontSize: 11, color: 'var(--text-3)' }}>Active Dasha</p><p style={{ fontSize: 14, fontWeight: 600 }}>{result.partnerKundli.currentDasha?.lord}</p></div>
+                </div>
+              </div>
+            )}
+
+            {/* AI Pandit Narrative */}
+            {result.narrative && (
+              <div className="gold-card" style={{
+                marginBottom: 20,
+                borderLeft: '3px solid var(--gold-mid)',
+                padding: '20px 24px',
+                background: 'linear-gradient(135deg, var(--gold-dim) 0%, var(--bg-2) 100%)',
+              }}>
+                <p className="label-caps" style={{ marginBottom: 12, color: 'var(--gold-bright)' }}>
+                  👑 Pandit Ji Ki Raay
+                </p>
+                <p style={{
+                  fontSize: 15, color: 'var(--text-1)',
+                  lineHeight: 1.75, whiteSpace: 'pre-wrap',
+                  fontStyle: 'italic',
+                }}>
+                  {result.narrative}
+                </p>
+              </div>
+            )}
 
             <button onClick={() => setResult(null)} className="btn-ghost" style={{ fontSize: 13 }}>
               ← Dobara try karein

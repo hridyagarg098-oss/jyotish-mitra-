@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { message, kundliId } = await request.json();
-    if (!message) {
+    if (!message?.trim()) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
 
-    // ── Rate limiting (IST midnight reset) ──
+    // ── Rate limiting (IST midnight reset) ──────────────────────────
     const { data: userData } = await admin
       .from('users')
       .select('plan, chat_count_today, chat_reset_at')
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       if (userData.plan === 'free' && countToday >= 5) {
         return NextResponse.json({
           error: 'limit_reached',
-          message: 'Aapki 5 free messages khatam ho gayi. Pro mein upgrade karein aur unlimited AI Pandit se baat karein! ✨',
+          message: 'Aapki 5 free messages khatam ho gayi hain. Pro mein upgrade karein — unlimited AI Pandit! ✨',
         }, { status: 429 });
       }
 
@@ -53,19 +53,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Build full kundli context ──
-    let kundliContextBlock = 'Kundli data available nahi hai. User se birth details maango (date, time IST, place).';
-    
-    // Determine which kundli to use: explicit kundliId or user's latest
+    // ── Fetch user's kundli ─────────────────────────────────────────
     const kundliQuery = kundliId
       ? admin.from('kundlis').select('*').eq('id', kundliId).eq('user_id', user.id).single()
       : admin.from('kundlis').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single();
 
     const { data: kundliRecord } = await kundliQuery;
 
+    // ── Fetch today's transits for context ──────────────────────────
+    let transits: TransitData | undefined;
     if (kundliRecord) {
-      // Fetch today's transits for context
-      let transits: TransitData | undefined;
       try {
         const { data: transitCache } = await admin
           .from('daily_rashifal')
@@ -74,83 +71,88 @@ export async function POST(request: NextRequest) {
           .eq('date', todayIST())
           .single();
         if (transitCache?.data) transits = transitCache.data as TransitData;
-      } catch { /* transits unavailable */ }
+      } catch { /* transits unavailable — proceed without */ }
+    }
 
-      // Build the kundli object from stored data
+    // ── Build kundli context block ──────────────────────────────────
+    let kundliContextBlock = 'Is user ki kundli abhi available nahi hai. Unse janam taarikh, samay (IST), aur sthan maango — phir kundli banayein.';
+
+    if (kundliRecord) {
       const { data: userProfile } = await admin
         .from('users')
         .select('name, dob, tob, pob')
         .eq('id', user.id)
         .single();
 
-      // Reconstruct a KundliData-compatible object from DB
-      const storedKundli: Partial<KundliData> & Record<string, any> = {
+      const storedKundli = {
         name: userProfile?.name || kundliRecord.name || 'Jatak',
-        dob: userProfile?.dob || kundliRecord.dob || '',
-        tob: userProfile?.tob || kundliRecord.tob || '',
-        pob: userProfile?.pob || kundliRecord.pob || '',
+        dob:  userProfile?.dob  || kundliRecord.dob  || '',
+        tob:  userProfile?.tob  || kundliRecord.tob  || '',
+        pob:  userProfile?.pob  || kundliRecord.pob  || '',
         lat: kundliRecord.lat || 0,
         lng: kundliRecord.lng || 0,
-        rashiNum: kundliRecord.rashi_num,
-        rashi: kundliRecord.rashi,
-        rashiDevanagari: '',
-        rashiEnglish: '',
-        lagnaNum: kundliRecord.lagna_num,
-        lagna: kundliRecord.lagna,
-        lagnaDevanagari: '',
-        lagnaEnglish: '',
-        lagnaDegree: kundliRecord.lagna_degree || 0,
-        lagnaMinute: kundliRecord.lagna_minute || 0,
-        lagnaSecond: 0,
+        rashiNum:         kundliRecord.rashi_num,
+        rashi:            kundliRecord.rashi,
+        rashiDevanagari:  '',
+        rashiEnglish:     '',
+        lagnaNum:         kundliRecord.lagna_num,
+        lagna:            kundliRecord.lagna,
+        lagnaDevanagari:  '',
+        lagnaEnglish:     '',
+        lagnaDegree:      kundliRecord.lagna_degree || 0,
+        lagnaMinute:      kundliRecord.lagna_minute || 0,
+        lagnaSecond:      0,
         lagnaDegreeFormatted: kundliRecord.lagna_degree
-          ? `${kundliRecord.lagna_degree}° ${String(kundliRecord.lagna_minute || 0).padStart(2,'0')}'`
+          ? `${kundliRecord.lagna_degree}°${String(kundliRecord.lagna_minute || 0).padStart(2,'0')}'`
           : '',
-        navamsaLagna: kundliRecord.navamsa_lagna || '',
-        nakshatra: kundliRecord.nakshatra,
-        nakshatraPada: kundliRecord.nakshatra_pada,
-        nakshatraLord: kundliRecord.current_dasha?.lord || 'Shukra',
-        planets: kundliRecord.planet_positions || {},
-        bhavas: kundliRecord.bhavas || [],
-        dashas: kundliRecord.dasha_periods || [],
-        currentDasha: kundliRecord.current_dasha || {
+        navamsaLagna:   kundliRecord.navamsa_lagna || '',
+        nakshatra:      kundliRecord.nakshatra,
+        nakshatraPada:  kundliRecord.nakshatra_pada,
+        nakshatraLord:  kundliRecord.current_dasha?.lord || 'Shukra',
+        planets:        kundliRecord.planet_positions || {},
+        bhavas:         kundliRecord.bhavas || [],
+        dashas:         kundliRecord.dasha_periods || [],
+        currentDasha:   kundliRecord.current_dasha || {
           lord: 'Shukra', startDate: '', endDate: '',
           antardasha: { lord: 'Shukra', startDate: '', endDate: '', isCurrent: true },
         },
-        houseCenters: {},
-        calculatedAt: kundliRecord.created_at,
-      };
+        houseCenters:  {},
+        calculatedAt:  kundliRecord.created_at,
+      } as KundliData;
 
-      kundliContextBlock = buildKundliContext(storedKundli as KundliData, transits);
+      kundliContextBlock = buildKundliContext(storedKundli, transits);
     }
 
-    // ── Chat history for context window ──
+    // ── Last 3 conversation turns (6 messages) ─────────────────────
     const { data: chatHistory } = await admin
       .from('chat_messages')
       .select('role, content')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(12);
+      .limit(6);                    // 3 pairs max — keep context tight
 
     const historyMessages = (chatHistory || []).reverse().map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
 
-    // ── Build messages array ──
-    // Architecture: system prompt → kundli context (as user msg) → history → current message
+    // ── Message array — LLaMA 3.3 processes user msgs most strongly ─
+    // Architecture: system → kundli briefing (user→assistant pair) → history → current
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: PANDIT_SYSTEM_PROMPT,
       },
-      // Inject kundli as a user→assistant "briefing" before the real conversation
+      // Kundli as a "briefing" exchange before the real chat
       {
         role: 'user',
         content: kundliContextBlock,
       },
       {
         role: 'assistant',
-        content: 'Achha, maine aapki kundli padh li. Main aapke sawaalon ka jawab is chart ke aadhaar par dunga.',
+        content: kundliRecord
+          ? `Haan ji, aapki kundli dekh li. Poochho kya jaanna hai.`
+          : `Aapki kundli abhi nahi mili. Janam taarikh, samay aur jagah batayein — phir main poora chart dekh ke baat karta hoon.`,
       },
       ...historyMessages,
       {
@@ -159,15 +161,15 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    // ── Stream from Groq ──
+    // ── Stream with concise settings ────────────────────────────────
     const stream = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages,
-      max_tokens: 1200,       // enough for detailed predictions
-      temperature: 0.5,       // balanced — not too creative, not too dry
-      top_p: 0.9,
-      frequency_penalty: 0.3, // avoid repetitive phrases
-      presence_penalty: 0.2,  // encourage covering different aspects
+      max_tokens: 400,          // HARD LIMIT — forces 4-8 line answers
+      temperature: 0.65,        // slight creativity but grounded
+      top_p: 0.85,
+      frequency_penalty: 0.5,   // STRONG — prevents repetitive astro phrases
+      presence_penalty: 0.3,    // encourages covering different angles
       stream: true,
     });
 
@@ -186,9 +188,9 @@ export async function POST(request: NextRequest) {
           }
           controller.close();
 
-          // Save to DB
+          // Persist to DB after stream ends
           await admin.from('chat_messages').insert([
-            { user_id: user.id, role: 'user', content: message },
+            { user_id: user.id, role: 'user',      content: message },
             { user_id: user.id, role: 'assistant', content: fullResponse },
           ]);
 
