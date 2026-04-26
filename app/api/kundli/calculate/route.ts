@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      console.error('[kundli] Auth error:', authError?.message);
       return NextResponse.json(
         { error: 'Login karein pehle — session expire ho gayi hai' },
         { status: 401 }
@@ -27,10 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Admin client ────────────────────────────────────
-    const { getAdminClient } = await import('@/lib/supabase/admin');
-    const adminClient = getAdminClient();
-
     // ── Calculate kundli ────────────────────────────────
     let kundliData;
     try {
@@ -43,53 +38,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Ensure user row exists ──────────────────────────
-    // The trigger auto-creates the row on signup, but upsert here as safety net
-    const { error: userUpsertError } = await adminClient.from('users').upsert({
-      id: user.id,
-      name,
-      email: user.email!,
-      dob,
-      tob,
-      pob,
-      lat,
-      lng,
-    }, { onConflict: 'id' });
+    // ── Save to DB (non-fatal — works even if tables don't exist yet) ──
+    let kundliId: string | null = null;
+    let dbSaved = false;
 
-    if (userUpsertError) {
-      // Non-fatal: log but continue — user row might already exist with correct data
-      console.warn('[kundli] User upsert warning:', userUpsertError.message);
+    try {
+      const { getAdminClient } = await import('@/lib/supabase/admin');
+      const adminClient = getAdminClient();
+
+      // Ensure user row exists (trigger should handle this, but upsert as safety)
+      await adminClient.from('users').upsert({
+        id: user.id,
+        name,
+        email: user.email!,
+        dob,
+        tob,
+        pob,
+        lat,
+        lng,
+      }, { onConflict: 'id' });
+
+      // Insert kundli record
+      const { data: kundliRecord, error: kundliError } = await adminClient
+        .from('kundlis')
+        .insert({
+          user_id: user.id,
+          rashi: kundliData.rashi,
+          rashi_num: kundliData.rashiNum,
+          lagna: kundliData.lagna,
+          lagna_num: kundliData.lagnaNum,
+          nakshatra: kundliData.nakshatra,
+          nakshatra_pada: kundliData.nakshatraPada,
+          planet_positions: kundliData.planets,
+          dasha_periods: kundliData.dashas,
+          current_dasha: kundliData.currentDasha,
+        })
+        .select('id')
+        .single();
+
+      if (kundliError) {
+        console.warn('[kundli] DB save failed (non-fatal):', kundliError.message);
+      } else {
+        kundliId = kundliRecord.id;
+        dbSaved = true;
+      }
+    } catch (dbErr) {
+      // DB not set up yet — still return the calculation result
+      console.warn('[kundli] DB not available (non-fatal):', dbErr instanceof Error ? dbErr.message : String(dbErr));
     }
 
-    // ── Save kundli ─────────────────────────────────────
-    const { data: kundliRecord, error: kundliError } = await adminClient
-      .from('kundlis')
-      .insert({
-        user_id: user.id,
-        rashi: kundliData.rashi,
-        rashi_num: kundliData.rashiNum,
-        lagna: kundliData.lagna,
-        lagna_num: kundliData.lagnaNum,
-        nakshatra: kundliData.nakshatra,
-        nakshatra_pada: kundliData.nakshatraPada,
-        planet_positions: kundliData.planets,
-        dasha_periods: kundliData.dashas,
-        current_dasha: kundliData.currentDasha,
-      })
-      .select()
-      .single();
-
-    if (kundliError) {
-      console.error('[kundli] DB insert error:', kundliError);
-      return NextResponse.json(
-        { error: `Database error: ${kundliError.message}` },
-        { status: 500 }
-      );
-    }
-
+    // ── Always return calculated data ───────────────────
     return NextResponse.json({
-      kundliId: kundliRecord.id,
+      kundliId,         // null if DB not set up — client handles this
       userId: user.id,
+      dbSaved,          // lets client know if it was persisted
       ...kundliData,
     });
 

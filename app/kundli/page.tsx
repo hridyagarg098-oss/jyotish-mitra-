@@ -93,8 +93,16 @@ export default function KundliPage() {
         throw new Error(data.error || `Server error (${res.status})`);
       }
 
+      // Store calculated data in sessionStorage so dashboard can show it
+      // even if DB save failed (tables not set up yet)
+      try {
+        sessionStorage.setItem('latestKundli', JSON.stringify(data));
+      } catch (_) {}
+
       setStep('done');
       await new Promise(r => setTimeout(r, 1000));
+
+      // Always redirect to dashboard — it reads from DB or sessionStorage
       router.push(`/dashboard/${user.id}`);
     } catch (err) {
       clearInterval(msgInterval);
