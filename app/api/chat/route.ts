@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     const stream = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages,
-      max_tokens: 350,          // HARD CAP — forces short responses
+      max_tokens: 180,          // HARD CAP — 180 tokens ≈ 3-5 sentences in Hindi, cannot be overridden
       temperature: 0.6,         // balanced — not robotic, not hallucinating
       top_p: 0.88,
       frequency_penalty: 0.6,   // HIGH — kills repetitive astrology phrases
