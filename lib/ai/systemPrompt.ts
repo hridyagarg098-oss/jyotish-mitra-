@@ -191,10 +191,10 @@ export function buildKundliContext(kundli: KundliData, transits?: TransitData): 
 
   const transitLine = transits
     ? Object.entries(transits.planets)
-        .map(([name, info]) =>
-          `${name} ${info.rashi} ${Math.floor(info.degrees)}°${info.isRetrograde ? 'R' : ''}`,
-        )
-        .join(' | ')
+      .map(([name, info]) =>
+        `${name} ${info.rashi} ${Math.floor(info.degrees)}°${info.isRetrograde ? 'R' : ''}`,
+      )
+      .join(' | ')
     : '';
 
   const md = kundli.currentDasha;
@@ -234,8 +234,8 @@ export function buildRashifalPrompt(rashi: string, transits?: TransitData): stri
   });
   const transitLines = transits
     ? Object.entries(transits.planets)
-        .map(([name, info]) => `${name}: ${info.rashi} ${Math.floor(info.degrees)}°${info.isRetrograde ? ' (Vakri)' : ''} — ${info.nakshatra}`)
-        .join('\n')
+      .map(([name, info]) => `${name}: ${info.rashi} ${Math.floor(info.degrees)}°${info.isRetrograde ? ' (Vakri)' : ''} — ${info.nakshatra}`)
+      .join('\n')
     : 'Transit data unavailable';
 
   return `Aaj: ${today}\n${rashi} rashi — transit data:\n${transitLines}\nReturn ONLY JSON: { "general": string, "career": string, "love": string, "health": string, "upay": string, "lucky": { "color": string, "number": number, "time": string }, "rating": number }`;

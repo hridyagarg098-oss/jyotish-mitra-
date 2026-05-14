@@ -46,3 +46,13 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# MCP config (contains API tokens — NEVER commit)
+.mcp.json
+
+# AI dev-tool configs
+CLAUDE.md
+AGENTS.md
+
+# Deno lockfile
+deno.lock
